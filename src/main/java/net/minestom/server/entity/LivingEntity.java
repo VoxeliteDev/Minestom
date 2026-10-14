@@ -21,6 +21,7 @@ import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.entity.EntityDamageEvent;
 import net.minestom.server.event.entity.EntityDeathEvent;
 import net.minestom.server.event.entity.EntityFireExtinguishEvent;
+import net.minestom.server.event.entity.EntityHandAnimationEvent;
 import net.minestom.server.event.entity.EntitySetFireEvent;
 import net.minestom.server.event.item.EntityEquipEvent;
 import net.minestom.server.event.item.PickupItemEvent;
@@ -608,12 +609,21 @@ public class LivingEntity extends Entity implements EquipmentHandler {
     }
 
     private void swingHand(boolean fromClient, EntityAnimationPacket.Animation animation) {
-        EntityAnimationPacket packet = new EntityAnimationPacket(getEntityId(), animation);
-        if (fromClient) {
-            sendPacketToViewers(packet);
-        } else {
-            sendPacketToViewersAndSelf(packet);
-        }
+
+        // Voxelite--
+        //  generified the hand animation event for all living-based entity objects.
+        //  event can also be canceled in order to prevent animation packets from being processed.
+        final EntityHandAnimationEvent entityHandAnimationEvent = new EntityHandAnimationEvent(this, animation);
+        EventDispatcher.callCancellable(entityHandAnimationEvent, () -> {
+
+            final EntityAnimationPacket packet = new EntityAnimationPacket(getEntityId(), animation);
+
+            if (fromClient) {
+                sendPacketToViewers(packet);
+            } else {
+                sendPacketToViewersAndSelf(packet);
+            }
+        });
     }
 
     public void refreshActiveHand(boolean isHandActive, boolean offHand, boolean riptideSpinAttack) {
