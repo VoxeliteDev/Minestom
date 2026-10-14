@@ -17,6 +17,7 @@ However, we have a complete API which is designed to allow you to make anything 
 This is a developer API not meant to be used by end-users. Replacing Bukkit/Forge/Sponge with this **will not work** since we do not implement any of their APIs.
 
 # Table of contents
+- [Voxelite](#voxelite)
 - [Install](#install)
 - [Usage](#usage)
 - [Why Minestom?](#why-minestom)
@@ -25,6 +26,18 @@ This is a developer API not meant to be used by end-users. Replacing Bukkit/Forg
 - [Credits](#credits)
 - [Contributing](#contributing)
 - [License](#license)
+
+# Voxelite
+We maintain our own fork of Minestom in order to add more functionality and improvements to the codebase so our own implementations are significantly better.
+Some simple use-case rules to follow when writing/publishing the codebase:
+
+* Features/additions should be allocated to individual branches. Branches should be simple and only used for a specific feature
+* Pull requests must be created and signed off before merging feature branches into `/voxelitedev`
+* Whenever new features or code are added, please add a `// Voxelite--` comment above it, so we can easily track/search for changes
+* Recommended that you also leave a small comment below the aforementioned tag to explain use-cause and-or reasoning as to the changes
+* `/voxelitedev` branch is the main `feature` branch, and should NEVER be merged back into `master`
+* All upstream changes and main repository features get rebased onto `master`, and then `master` gets rebased onto `voxelitedev` to maintain feature parody
+* Follow historical version ordering trends, especially when publishing as gradle dependency and to maven local
 
 # Install
 Minestom is not installed like Bukkit/Forge/Sponge.
