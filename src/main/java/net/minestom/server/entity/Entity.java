@@ -37,6 +37,8 @@ import net.minestom.server.event.EventHandler;
 import net.minestom.server.event.EventNode;
 import net.minestom.server.event.entity.EntityDeathEvent;
 import net.minestom.server.event.entity.EntityDespawnEvent;
+import net.minestom.server.event.entity.EntityMetadataChangeEvent;
+import net.minestom.server.event.entity.EntityPoseChangeEvent;
 import net.minestom.server.event.entity.EntityPotionAddEvent;
 import net.minestom.server.event.entity.EntityPotionRemoveEvent;
 import net.minestom.server.event.entity.EntitySpawnEvent;
@@ -1196,6 +1198,19 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     }
 
     /**
+     * Makes the entity visually play the onFire animation.
+     * <p>
+     * WARNING: this will forcibly play the onFire animation for all viewing clients
+     *          permanently until the onFire metadata bitmask flag is changed.
+     *
+     * @param onFire true to make the entity look like its on fire
+     */
+    public void setFire(boolean onFire) {
+        //  Voxelite--
+        this.mutateMetadataBitmaskFlag(EntityMetadataChangeEvent.MetadataChangeType.ON_FIRE_STATE, _ -> this.entityMeta.setOnFire(onFire));
+    }
+
+    /**
      * Gets if the entity is sneaking.
      * <p>
      * WARNING: this can be bypassed by hacked client, this is only what the client told the server.
@@ -1214,7 +1229,8 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param sneaking true to make the entity sneak
      */
     public void setSneaking(boolean sneaking) {
-        this.entityMeta.setSneaking(sneaking);
+        //  Voxelite--
+        this.mutateMetadataBitmaskFlag(EntityMetadataChangeEvent.MetadataChangeType.SNEAKING_STATE, _ -> this.entityMeta.setSneaking(sneaking));
         updatePose();
     }
 
@@ -1237,7 +1253,8 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param sprinting true to make the entity sprint
      */
     public void setSprinting(boolean sprinting) {
-        this.entityMeta.setSprinting(sprinting);
+        //  Voxelite--
+        this.mutateMetadataBitmaskFlag(EntityMetadataChangeEvent.MetadataChangeType.SPRINTING_STATE, _ -> this.entityMeta.setSprinting(sprinting));
     }
 
     /**
@@ -1256,7 +1273,8 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param invisible true to set the entity invisible, false otherwise
      */
     public void setInvisible(boolean invisible) {
-        this.entityMeta.setInvisible(invisible);
+        //  Voxelite--
+        this.mutateMetadataBitmaskFlag(EntityMetadataChangeEvent.MetadataChangeType.INVISIBLE_STATE, _ -> this.entityMeta.setInvisible(invisible));
     }
 
     /**
@@ -1274,7 +1292,8 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param glowing true to make the entity glows, false otherwise
      */
     public void setGlowing(boolean glowing) {
-        this.entityMeta.setHasGlowingEffect(glowing);
+        //  Voxelite--
+        this.mutateMetadataBitmaskFlag(EntityMetadataChangeEvent.MetadataChangeType.GLOWING_STATE, _ -> this.entityMeta.setHasGlowingEffect(glowing));
     }
 
     /**
@@ -1295,7 +1314,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param pose the new entity pose
      */
     public void setPose(EntityPose pose) {
-        this.entityMeta.setPose(pose);
+        //  Voxelite--
+        final EntityPoseChangeEvent poseChangeEvent = new EntityPoseChangeEvent(this, pose);
+        EventDispatcher.callCancellable(poseChangeEvent, () -> this.entityMeta.setPose(poseChangeEvent.getPose()));     // allow the event to modify the incoming pose
     }
 
     protected void updatePose() {
@@ -1310,6 +1331,13 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         } else {
             setPose(EntityPose.STANDING);
         }
+    }
+
+    @ApiStatus.Internal
+    protected void mutateMetadataBitmaskFlag(final EntityMetadataChangeEvent.MetadataChangeType changeType, final Consumer<EntityMeta> metadataConsumer) {
+        //  Voxelite--
+        final EntityMetadataChangeEvent metadataChangeEvent = new EntityMetadataChangeEvent(this, changeType);
+        EventDispatcher.callCancellable(metadataChangeEvent, () -> metadataConsumer.accept(this.entityMeta));
     }
 
     /**
@@ -1377,6 +1405,25 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      */
     public void setNoGravity(boolean noGravity) {
         this.entityMeta.setHasNoGravity(noGravity);
+    }
+
+    /**
+     * Gets the freezeTicks metadata field.
+     *
+     * @return true if the entity has freeze ticks, false otherwise
+     */
+    public boolean isFrozen() {
+        return this.entityMeta.getTickFrozen() > 0;
+    }
+
+    /**
+     * Changes the freezeTicks metadata field and therefore can apply client-side freeze properties accordingly.
+     *
+     * @param freezeTicks to set the freeze tick duration
+     */
+    public void setFreezeTicks(int freezeTicks) {
+        //  Voxelite--
+        this.mutateMetadataBitmaskFlag(EntityMetadataChangeEvent.MetadataChangeType.FROZEN_STATE, _ -> this.entityMeta.setTickFrozen(freezeTicks));
     }
 
     /**
