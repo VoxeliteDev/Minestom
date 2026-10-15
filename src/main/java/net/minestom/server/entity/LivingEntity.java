@@ -22,6 +22,7 @@ import net.minestom.server.event.entity.EntityDamageEvent;
 import net.minestom.server.event.entity.EntityDeathEvent;
 import net.minestom.server.event.entity.EntityFireExtinguishEvent;
 import net.minestom.server.event.entity.EntityHandAnimationEvent;
+import net.minestom.server.event.entity.EntityMetadataChangeEvent;
 import net.minestom.server.event.entity.EntitySetFireEvent;
 import net.minestom.server.event.item.EntityEquipEvent;
 import net.minestom.server.event.item.PickupItemEvent;
@@ -667,7 +668,8 @@ public class LivingEntity extends Entity implements EquipmentHandler {
     }
 
     public void setFlyingWithElytra(boolean isFlying) {
-        this.entityMeta.setFlyingWithElytra(isFlying);
+        //  Voxelite--
+        this.mutateMetadataBitmaskFlag(EntityMetadataChangeEvent.MetadataChangeType.ELYTRA_FLYING_STATE, _ -> this.entityMeta.setFlyingWithElytra(isFlying));
         updatePose();
     }
 
