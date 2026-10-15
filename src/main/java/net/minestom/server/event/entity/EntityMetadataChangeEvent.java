@@ -19,7 +19,7 @@ import net.minestom.server.event.trait.EntityEvent;
  *      issues.
  * </p>
  * <p>
- *      {@code Metadata} while being both server-side & client-side, is mainly used for state, status
+ *      {@code Metadata} while being both server-side and client-side, is mainly used for state, status
  *      or animation tracking. However, the actual effect it has on player clients depends on per metadata field.
  *      For example, if an entities {@code sneaking} metadata bitmask flag is set to {@code true}, this won't
  *      actually make an entity sneak client-side. Instead, you need to mutate the {@code pose} metadata type.
