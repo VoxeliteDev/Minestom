@@ -44,7 +44,8 @@ import net.minestom.server.event.entity.EntityPotionRemoveEvent;
 import net.minestom.server.event.entity.EntitySpawnEvent;
 import net.minestom.server.event.entity.EntityTeleportEvent;
 import net.minestom.server.event.entity.EntityTickEvent;
-import net.minestom.server.event.entity.EntityVelocityEvent;
+import net.minestom.server.event.entity.velocity.EntityVelocityEvent;
+import net.minestom.server.event.entity.velocity.VelocityEventTag;
 import net.minestom.server.event.instance.AddEntityToInstanceEvent;
 import net.minestom.server.event.instance.RemoveEntityFromInstanceEvent;
 import net.minestom.server.event.trait.EntityEvent;
@@ -120,6 +121,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
@@ -989,6 +991,8 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         return velocity;
     }
 
+    //  Voxelite--
+
     /**
      * Changes the entity velocity and calls {@link EntityVelocityEvent}.
      * <p>
@@ -997,7 +1001,27 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      * @param velocity the new entity velocity
      */
     public void setVelocity(Vec velocity) {
-        EntityVelocityEvent entityVelocityEvent = new EntityVelocityEvent(this, velocity);
+        this.setVelocity(() -> new EntityVelocityEvent(this, velocity));
+    }
+
+    public void setVelocity(Vec velocity, VelocityEventTag tag) {
+        this.setVelocity(() -> new EntityVelocityEvent(this, velocity, tag));
+    }
+
+    public void setVelocity(Vec velocity, Set<VelocityEventTag> tags) {
+        this.setVelocity(() -> new EntityVelocityEvent(this, velocity, tags));
+    }
+
+    /**
+     * Retrieves the supplied {@link EntityVelocityEvent}, mutates the entities
+     * velocity field and sends packets to all viewing client(s).
+     * <p>
+     * The final velocity can be cancelled or modified by the event.
+     *
+     * @param eventSupplier the velocity event to provide the dispatcher with
+     */
+    public void setVelocity(final Supplier<EntityVelocityEvent> eventSupplier) {
+        final EntityVelocityEvent entityVelocityEvent = eventSupplier.get();
         EventDispatcher.callCancellable(entityVelocityEvent, () -> {
             this.velocity = entityVelocityEvent.getVelocity();
             sendPacketToViewersAndSelf(getVelocityPacket());

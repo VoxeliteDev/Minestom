@@ -7,6 +7,7 @@ import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.RelativeFlags;
 import net.minestom.server.event.EventDispatcher;
+import net.minestom.server.event.player.PlayerJumpEvent;
 import net.minestom.server.event.player.PlayerMoveEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.network.packet.client.play.ClientPlayerPositionAndRotationPacket;
@@ -81,18 +82,47 @@ public class PlayerPositionListener {
             return;
         }
 
-        PlayerMoveEvent playerMoveEvent = new PlayerMoveEvent(player, packetPosition, onGround);
+        //  Voxelite--
+        // player isn't flagged as being in any "flying" state
+        // player is currently touching the ground
+        // the incoming player position update flags the player as no longer grounded and y position has increased
+        final boolean isJumping = player.isOnGround()
+                && !onGround
+                && packetPosition.y() > currentPosition.y()
+                && !player.isFlying()
+                && !player.isFlyingWithElytra()
+                && player.getVehicle() == null;
+
+        if (isJumping) {
+
+            final PlayerJumpEvent jumpEvent = new PlayerJumpEvent(player, currentPosition, packetPosition);
+            EventDispatcher.call(jumpEvent);
+
+            if (!currentPosition.equals(player.getPosition())) {
+                // a listener has teleported the player during the event call
+                return;
+            }
+
+            if (jumpEvent.isCancelled()) {
+                // teleport to previous position & cancel any velocity
+                internalCancelPositionUpdate(player, currentPosition);
+                return;
+            }
+        }
+
+        final PlayerMoveEvent playerMoveEvent = new PlayerMoveEvent(player, packetPosition, onGround);
         EventDispatcher.call(playerMoveEvent);
+
         if (!currentPosition.equals(player.getPosition())) {
             // Player has been teleported in the event
             return;
         }
         if (playerMoveEvent.isCancelled()) {
             // Teleport to previous position & cancel any velocity
-            player.sendPacket(new PlayerPositionAndLookPacket(player.getNextTeleportId(), currentPosition,
-                    Vec.ZERO, currentPosition.yaw(), currentPosition.pitch(), (byte) RelativeFlags.NONE));
+            internalCancelPositionUpdate(player, currentPosition);
             return;
         }
+
         final Pos eventPosition = playerMoveEvent.getNewPosition();
         if (packetPosition.equals(eventPosition)) {
             // Event didn't change the position
@@ -108,5 +138,10 @@ public class PlayerPositionListener {
                 var _ = player.teleport(eventPosition);
             }
         }
+    }
+
+    private static void internalCancelPositionUpdate(final Player player, final Pos currentPosition) {
+        player.sendPacket(new PlayerPositionAndLookPacket(player.getNextTeleportId(), currentPosition,
+                Vec.ZERO, currentPosition.yaw(), currentPosition.pitch(), (byte) RelativeFlags.NONE));
     }
 }
