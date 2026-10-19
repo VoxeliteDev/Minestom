@@ -44,7 +44,7 @@ public class EntityVelocityEvent implements EntityInstanceEvent, CancellableEven
 
     public EntityVelocityEvent(Entity entity, Vec velocity, Set<VelocityEventTag> tags) {
         this(entity, velocity);
-        this.addTags(tags);
+        addTagsInternal(tags);
     }
 
     public EntityVelocityEvent(Entity entity, Vec velocity, VelocityEventTag tag) {
@@ -94,6 +94,11 @@ public class EntityVelocityEvent implements EntityInstanceEvent, CancellableEven
      * @param tags the applied tags
      */
     public void addTags(final Set<VelocityEventTag> tags) {
+        addTagsInternal(tags);
+    }
+
+    // fixes stupid compiler 'escape' error
+    private void addTagsInternal(Set<VelocityEventTag> tags) {
         if (tags != null && !tags.isEmpty()) {
             this.tags.addAll(tags);
         }
@@ -127,6 +132,8 @@ public class EntityVelocityEvent implements EntityInstanceEvent, CancellableEven
     }
 
     /**
+     * Checks if the provided {@link VelocityEventTag} is matching an already flagged tag.
+     *
      * @return {@code true} if the provided {@link VelocityEventTag} is within the stored tag set
      */
     public boolean hasTag(final VelocityEventTag tag) {
