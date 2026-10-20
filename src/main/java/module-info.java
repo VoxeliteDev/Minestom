@@ -194,6 +194,7 @@ module net.minestom.server {
     exports net.minestom.server.world.biome;
     exports net.minestom.server.world.timeline;
     exports net.minestom.server.world.clock;
+    exports net.minestom.server.event.entity.velocity;
 
     provides ComponentLoggerProvider with MinestomComponentLoggerProvider;
     provides ANSIComponentSerializer.Provider with MinestomAnsiComponentSerializerProvider;
