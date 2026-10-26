@@ -149,7 +149,7 @@ public class ConnectionManagerIntegrationTest {
         private final List<SendablePacket> packets = new ArrayList<>();
 
         @Override
-        public void sendPacket(SendablePacket packet) {
+        protected void enqueue(SendablePacket packet) {
             packets.add(packet);
         }
 
@@ -179,7 +179,7 @@ public class ConnectionManagerIntegrationTest {
         }
 
         @Override
-        public void sendPacket(SendablePacket packet) {
+        protected void enqueue(SendablePacket packet) {
             if (packet instanceof LoginSuccessPacket) {
                 // Model the socket reader handling an immediate acknowledgement before the login
                 // thread resumes from sendPacket.

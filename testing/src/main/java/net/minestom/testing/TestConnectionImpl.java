@@ -78,7 +78,7 @@ final class TestConnectionImpl implements TestConnection {
         private boolean online = true;
 
         @Override
-        public void sendPacket(SendablePacket packet) {
+        protected void enqueue(SendablePacket packet) {
             final var serverPacket = this.extractPacket(packet);
             for (var tracker : incomingTrackers) {
                 if (tracker.type.isAssignableFrom(serverPacket.getClass())) tracker.packets.add(serverPacket);

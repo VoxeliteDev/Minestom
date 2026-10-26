@@ -7,6 +7,7 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.instance.EntityTracker;
 import net.minestom.server.instance.Instance;
+import net.minestom.server.network.packet.server.outbound.OutboundPackets;
 import net.minestom.server.property.ServerProperties;
 import org.jetbrains.annotations.Nullable;
 
@@ -102,7 +103,7 @@ final class EntityView {
                 player.viewEngine.viewerOption.unregister(entity);
             }
         }
-        entity.updateOldViewer(player);
+        entity.updateOldViewer(player, !OutboundPackets.isUncached(entity.getEntityId()));
         final List<Entity> passengers = entity.getPassengers();
         if (!passengers.isEmpty()) {
             for (Entity passenger : passengers) {
