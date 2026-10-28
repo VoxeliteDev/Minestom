@@ -59,6 +59,7 @@ import net.minestom.server.instance.block.BlockHandler;
 import net.minestom.server.item.component.CustomData;
 import net.minestom.server.monitoring.EventsJFR;
 import net.minestom.server.network.packet.server.CachedPacket;
+import net.minestom.server.network.packet.server.outbound.OutboundPackets;
 import net.minestom.server.network.packet.server.play.AttachEntityPacket;
 import net.minestom.server.network.packet.server.play.DestroyEntitiesPacket;
 import net.minestom.server.network.packet.server.play.EntityHeadLookPacket;
@@ -580,7 +581,7 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
     @Override
     public final boolean removeViewer(Player player) {
         if (!viewEngine.manualRemove(player)) return false;
-        updateOldViewer(player);
+        updateOldViewer(player, !OutboundPackets.isUncached(getEntityId()));
         return true;
     }
 
@@ -618,8 +619,34 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
      */
     @ApiStatus.Internal
     public void updateOldViewer(Player player) {
+        this.updateOldViewer(player, true);
+    }
+
+    //  Voxelite--
+
+    /**
+     * Called when a viewer must be destroyed.
+     * Method can be subject to deadlocking if the target's viewers are also accessed.
+     * <p>
+     *  Voxelite--
+     * <p>
+     * Method comes with a flag to determine whether to use the destroy cache.
+     * Mainly for calls to the entity that require getting around the {@code CachePacket} use cases.
+     * For example, maybe your looking to use the {@code OutboundRewrier} to intercept and change
+     * packet(s), however {@code CachePacket} objects are out of scope for that functionality, so in
+     * this instance, setting this flag to {@code false} just generates a new destroy.
+     *
+     * @param player the player to send the packets to
+     * @param useCachedDestroy whether to use a {@code CachePacket} destroy or a new {@code ServerPacket} destroy.
+     */
+    @ApiStatus.Internal
+    public void updateOldViewer(Player player, boolean useCachedDestroy) {
         leashedEntities.forEach(entity -> player.sendPacket(new AttachEntityPacket(entity.getEntityId(), -1)));
-        player.sendPacket(destroyPacketCache);
+        if (useCachedDestroy) {
+            player.sendPacket(destroyPacketCache);
+        } else {
+            player.sendPacket(new DestroyEntitiesPacket(getEntityId()));
+        }
     }
 
     @Override
@@ -729,7 +756,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         }
     }
 
-    private void touchTick() {
+    //  Voxelite--
+    @ApiStatus.Internal
+    protected void touchTick() {
         if (!hasPhysics) return;
 
         // TODO do not call every tick (it is pretty expensive)
@@ -764,7 +793,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         }
     }
 
-    private void effectTick() {
+    //  Voxelite--
+    @ApiStatus.Internal
+    protected void effectTick() {
         final List<TimedPotion> effects = this.effects;
         if (effects.isEmpty()) return;
         effects.removeIf(timedPotion -> {

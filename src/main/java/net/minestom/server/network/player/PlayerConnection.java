@@ -13,6 +13,8 @@ import net.minestom.server.monitoring.EventsJFR;
 import net.minestom.server.network.ConnectionState;
 import net.minestom.server.network.packet.server.SendablePacket;
 import net.minestom.server.network.packet.server.ServerPacket;
+import net.minestom.server.network.packet.server.outbound.OutboundPackets;
+import net.minestom.server.network.packet.server.outbound.StagedPacket;
 import net.minestom.server.network.packet.server.common.CookieRequestPacket;
 import net.minestom.server.network.packet.server.common.CookieStorePacket;
 import net.minestom.server.network.packet.server.common.DisconnectPacket;
@@ -25,6 +27,7 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -78,11 +81,73 @@ public abstract class PlayerConnection {
     }
 
     /**
-     * Serializes the packet and send it to the client.
+     * Serializes the packet and sends it to the client.
+     * <p>Voxelite--</p>
+     * <p>
+     * When {@linkplain OutboundPackets outbound rewriters} are registered and {@code packet}
+     * is a {@link ServerPacket} for an initialized player, the staged packets are queued
+     * instead. Framed, cached, and buffered packets are queued unchanged. Subclasses
+     * queue bytes from {@link #enqueue(SendablePacket)} and do not override this method.
+     * </p>
      *
      * @param packet the packet to send
      */
-    public abstract void sendPacket(SendablePacket packet);
+    //  Voxelite--
+    // Final so every connection, including Player.showPlayer, rewrites a ServerPacket before it is queued.
+    public final void sendPacket(SendablePacket packet) {
+        for (SendablePacket outgoing : prepareOutgoing(packet)) enqueue(outgoing);
+    }
+
+    /**
+     * Queues one packet on this connection.
+     * <p>Voxelite--</p>
+     * <p>
+     * {@link #sendPacket(SendablePacket)} rewrites a {@link ServerPacket} and then calls this
+     * method for each staged packet. Implementations queue {@code packet} as given.
+     * </p>
+     *
+     * @param packet the packet to queue
+     */
+    protected abstract void enqueue(SendablePacket packet);
+
+    /**
+     * Queues a packet that has already been through {@link OutboundPackets}.
+     * <p>Voxelite--</p>
+     * <p>
+     * Grouped and viewable sends use this after they have run the rewriter chain themselves,
+     * so a packet is not rewritten twice.
+     * </p>
+     *
+     * @param packet the packet to queue
+     */
+    @ApiStatus.Internal
+    public final void sendRawPacket(SendablePacket packet) {
+        enqueue(packet);
+    }
+
+    /**
+     * Applies a direct outbound rewrite and returns the packets to queue.
+     * <p>Voxelite--</p>
+     *
+     * @param packet the packet a caller asked to send
+     * @return the packets to queue, empty when the emission was dropped
+     */
+    @ApiStatus.Internal
+    protected final List<SendablePacket> prepareOutgoing(SendablePacket packet) {
+        if (packet instanceof ServerPacket serverPacket && OutboundPackets.active()) {
+            final Player player = getPlayer();
+            if (player != null) {
+                final List<StagedPacket> staged = OutboundPackets.rewriteDirect(player, null, serverPacket);
+                if (staged == OutboundPackets.SPLIT) return List.of(packet);
+                if (staged != null) {
+                    final List<SendablePacket> outgoing = new ArrayList<>(staged.size());
+                    for (StagedPacket out : staged) outgoing.add(out.packet());
+                    return outgoing;
+                }
+            }
+        }
+        return List.of(packet);
+    }
 
     public void sendPackets(Collection<? extends SendablePacket> packets) {
         packets.forEach(this::sendPacket);

@@ -13,14 +13,18 @@ import net.minestom.server.network.NetworkBuffer;
 import net.minestom.server.network.packet.PacketWriting;
 import net.minestom.server.network.packet.server.BufferedPacket;
 import net.minestom.server.network.packet.server.ServerPacket;
+import net.minestom.server.network.packet.server.outbound.OutboundPackets;
+import net.minestom.server.network.packet.server.outbound.StagedPacket;
 import net.minestom.server.network.player.PlayerConnection;
 import net.minestom.server.network.player.PlayerSocketConnection;
 import net.minestom.server.property.ServerProperties;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 @ApiStatus.Internal
@@ -30,18 +34,71 @@ public final class PacketViewableUtils {
 
     public static void prepareViewablePacket(Viewable viewable, ServerPacket serverPacket,
                                              @Nullable Entity entity) {
+        //  Voxelite--
+        // Rewrite while the packet is still a ServerPacket. The shared buffer frames immediately after this.
+        if (OutboundPackets.active()) {
+            final List<StagedPacket> staged = OutboundPackets.rewriteShared(entity, serverPacket);
+            if (staged == OutboundPackets.SPLIT) {
+                PacketSendingUtils.sendSplitViewable(viewersOf(viewable, entity), serverPacket, entity);
+                return;
+            }
+            if (staged != null) {
+                if (entity != null && !entity.hasPredictableViewers()) {
+                    PacketSendingUtils.sendStagedViewable(entity.getViewers(), staged, entity);
+                    return;
+                }
+                if (!ServerProperties.VIEWABLE_PACKET.get()) {
+                    PacketSendingUtils.sendStagedViewable(viewable.getViewers(), staged, entity);
+                    return;
+                }
+                final Player exception = entity instanceof Player player ? player : null;
+                retrieveStorage(viewable).appendAll(staged, exception);
+                return;
+            }
+            dispatchUnrewritten(viewable, serverPacket, entity);
+            return;
+        }
+        dispatchUnrewritten(viewable, serverPacket, entity);
+    }
+
+    /**
+     * Sends {@code serverPacket} the way {@link #prepareViewablePacket} did before outbound rewriting.
+     * <p>Voxelite--</p>
+     * <p>
+     * Also used when a rewrite leaves the packet unchanged, so the grouped send does not run the
+     * rewriter chain again.
+     * </p>
+     *
+     * @param viewable     the viewers that will receive the packet
+     * @param serverPacket the packet to send
+     * @param entity       the entity excluded from the shared send, or null
+     */
+    private static void dispatchUnrewritten(Viewable viewable, ServerPacket serverPacket, @Nullable Entity entity) {
         if (entity != null && !entity.hasPredictableViewers()) {
             // Operation cannot be optimized
-            entity.sendPacketToViewers(serverPacket);
+            PacketSendingUtils.sendGroupedPacketUnrewritten(entity.getViewers(), serverPacket, _ -> true);
             return;
         }
         if (!ServerProperties.VIEWABLE_PACKET.get()) {
-            PacketSendingUtils.sendGroupedPacket(viewable.getViewers(), serverPacket, value -> !Objects.equals(value, entity));
+            PacketSendingUtils.sendGroupedPacketUnrewritten(viewable.getViewers(), serverPacket, value -> !Objects.equals(value, entity));
             return;
         }
         final Player exception = entity instanceof Player player ? player : null;
         ViewableStorage storage = retrieveStorage(viewable);
         storage.append(serverPacket, exception);
+    }
+
+    /**
+     * Gets the viewers a split viewable packet is addressed to.
+     * <p>Voxelite--</p>
+     *
+     * @param viewable the viewable whose viewers normally receive the packet
+     * @param entity   the entity that produced the packet, or null
+     * @return the entity's own viewers when they are not predictable, otherwise {@code viewable}'s viewers
+     */
+    private static Set<? extends Player> viewersOf(Viewable viewable, @Nullable Entity entity) {
+        if (entity != null && !entity.hasPredictableViewers()) return entity.getViewers();
+        return viewable.getViewers();
     }
 
     private static ViewableStorage retrieveStorage(Viewable viewable) {
@@ -83,6 +140,34 @@ public final class PacketViewableUtils {
         private final NetworkBuffer buffer = POOL.getAndRegister(this);
 
         private synchronized void append(ServerPacket serverPacket, @Nullable Player exception) {
+            writeFramed(serverPacket, exception);
+        }
+
+        /**
+         * Frames every staged packet under this storage lock.
+         * <p>Voxelite--</p>
+         * <p>
+         * One lock keeps a bundle contiguous with the packet it accompanies. A packet with
+         * {@code sendToSource} records no exclusion range, so the source player receives it.
+         * </p>
+         *
+         * @param staged    the packets to frame, in order
+         * @param exception the player excluded from packets that do not include the source, or null
+         */
+        private synchronized void appendAll(List<StagedPacket> staged, @Nullable Player exception) {
+            for (StagedPacket stagedPacket : staged) {
+                writeFramed(stagedPacket.packet(), stagedPacket.sendToSource() ? null : exception);
+            }
+        }
+
+        /**
+         * Frames {@code serverPacket} and records an exclusion range for {@code exception}.
+         * <p>Voxelite--</p>
+         *
+         * @param serverPacket the packet to frame
+         * @param exception    the player who must not receive this frame, or null
+         */
+        private void writeFramed(ServerPacket serverPacket, @Nullable Player exception) {
             final long start = buffer.writeIndex();
             // Viewable storage is only used for play packets, so fine to assume this.
             PacketWriting.writeFramedPacket(buffer, ConnectionState.PLAY, serverPacket, MinecraftServer.getCompressionThreshold());

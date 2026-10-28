@@ -92,7 +92,7 @@ public class StatusIntegrationTest {
         private final List<SendablePacket> packets = new ArrayList<>();
 
         @Override
-        public void sendPacket(SendablePacket packet) {
+        protected void enqueue(SendablePacket packet) {
             packets.add(packet);
         }
 

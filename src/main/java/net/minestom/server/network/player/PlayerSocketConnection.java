@@ -239,15 +239,35 @@ public class PlayerSocketConnection extends PlayerConnection {
         sendPacket(new SetCompressionPacket(threshold));
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>Voxelite--</p>
+     */
+    //  Voxelite--
+    // The queue lives here. Rewriting stays on PlayerConnection.sendPacket so a batched send cannot skip it.
     @Override
-    public void sendPacket(SendablePacket packet) {
+    protected void enqueue(SendablePacket packet) {
         this.packetQueue.relaxedOffer(packet);
         unlockWriteThread();
     }
 
+    /**
+     * Rewrites each packet, queues the staged results, and signals the write thread once.
+     * <p>Voxelite--</p>
+     * <p>
+     * Signalling once keeps the previous batched write. Each packet still goes through
+     * {@link #prepareOutgoing(SendablePacket)}, so a batch cannot skip the rewriter chain.
+     * </p>
+     *
+     * @param packets the packets to send
+     */
     @Override
     public void sendPackets(Collection<? extends SendablePacket> packets) {
-        for (SendablePacket packet : packets) this.packetQueue.relaxedOffer(packet);
+        for (SendablePacket packet : packets) {
+            for (SendablePacket outgoing : prepareOutgoing(packet)) {
+                this.packetQueue.relaxedOffer(outgoing);
+            }
+        }
         unlockWriteThread();
     }
 

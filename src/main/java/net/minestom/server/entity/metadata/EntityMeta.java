@@ -5,6 +5,7 @@ import net.minestom.server.component.DataComponent;
 import net.minestom.server.component.DataComponents;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityPose;
+import net.minestom.server.entity.Metadata;
 import net.minestom.server.entity.MetadataDef;
 import net.minestom.server.entity.MetadataHolder;
 import org.jetbrains.annotations.ApiStatus;
@@ -12,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
 import java.lang.ref.WeakReference;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class EntityMeta {
@@ -201,6 +203,11 @@ public class EntityMeta {
     protected <T> void set(DataComponent<T> component, T value) {
         if (component == DataComponents.CUSTOM_NAME)
             metadata.set(MetadataDef.CUSTOM_NAME, (Component) value);
+    }
+
+    @ApiStatus.Experimental
+    public Map<Integer, Metadata.Entry<?>> getMetadataHolderEntries() {
+        return metadata.getEntries();
     }
 
     /**
