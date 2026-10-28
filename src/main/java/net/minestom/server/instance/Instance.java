@@ -775,6 +775,19 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         return result;
     }
 
+    /**
+     * Gets nearby players to the given position.
+     *
+     * @param point position to look at
+     * @param range max range from the given point to collect players at
+     * @return players that are not further than the specified distance from the transmitted position.
+     */
+    public Collection<Player> getNearbyPlayers(Point point, double range) {
+        List<Player> result = new ArrayList<>();
+        this.entityTracker.nearbyEntities(point, range, EntityTracker.Target.PLAYERS, result::add);
+        return result;
+    }
+
     @Override
     public @Nullable Block getBlock(int x, int y, int z, Condition condition) {
         final Block block = blockRetriever.getBlock(x, y, z, condition);

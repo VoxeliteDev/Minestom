@@ -756,7 +756,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         }
     }
 
-    private void touchTick() {
+    //  Voxelite--
+    @ApiStatus.Internal
+    protected void touchTick() {
         if (!hasPhysics) return;
 
         // TODO do not call every tick (it is pretty expensive)
@@ -791,7 +793,9 @@ public class Entity implements Viewable, Tickable, Schedulable, Snapshotable, Ev
         }
     }
 
-    private void effectTick() {
+    //  Voxelite--
+    @ApiStatus.Internal
+    protected void effectTick() {
         final List<TimedPotion> effects = this.effects;
         if (effects.isEmpty()) return;
         effects.removeIf(timedPotion -> {
